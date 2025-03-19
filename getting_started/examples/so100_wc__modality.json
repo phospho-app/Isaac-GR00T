@@ -1,0 +1,35 @@
+{
+    "state": {
+        "single_arm": {
+            "start": 0,
+            "end": 5
+        },
+        "gripper": {
+            "start": 5,
+            "end": 6
+        }
+    },
+    "action": {
+        "single_arm": {
+            "start": 0,
+            "end": 5
+        },
+        "gripper": {
+            "start": 5,
+            "end": 6
+        }
+    },
+    "video": {
+        "cam_context": {
+            "original_key": "observation.images.secondary_0"
+        },
+        "cam_wrist": {
+            "original_key": "observation.images.main"
+        }
+    },
+    "annotation": {
+        "human.task_description": {
+            "original_key": "task_index"
+        }
+    }
+}
