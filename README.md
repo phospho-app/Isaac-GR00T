@@ -7,10 +7,17 @@
   
   <p style="font-size: 1.2em;">
     <a href="https://developer.nvidia.com/isaac/gr00t"><strong>Website</strong></a> | 
-    <a href="https://huggingface.co/nvidia/GR00T-N1-2B"><strong>HuggingFace</strong></a> |
-    <a href="https://research.nvidia.com/publication/2025-03_nvidia-isaac-gr00t-n1-open-foundation-model-humanoid-robots"><strong>Paper</strong></a>
+    <a href="https://huggingface.co/nvidia/GR00T-N1-2B"><strong>Model</strong></a> |
+    <a href="https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim"><strong>Dataset</strong></a> |
+    <a href="https://arxiv.org/abs/2503.14734"><strong>Paper</strong></a>
   </p>
 </div>
+
+[![CI](https://github.com/NVIDIA/Isaac-GR00T/actions/workflows/main.yml/badge.svg)](https://github.com/NVIDIA/Isaac-GR00T/actions/workflows/main.yml)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+[![GitHub star chart](https://img.shields.io/github/stars/NVIDIA/Isaac-GR00T?style=flat-square)](https://star-history.com/#NVIDIA/Isaac-GR00T)
+[![Open Issues](https://img.shields.io/github/issues-raw/NVIDIA/Isaac-GR00T?style=flat-square)](https://github.com/NVIDIA/Isaac-GR00T/issues)
 
 ## NVIDIA Isaac GR00T N1
 
@@ -54,10 +61,10 @@ GR00T N1 is intended for researchers and professionals in humanoid robotics. Thi
 The focus is on enabling customization of robot behaviors through finetuning.
 
 ## Prerequisites
-- We have tested the code on Ubuntu 20.04 and 22.04, GPU: H100, L40, A4090 and A6000 for finetuning and Python==3.10, CUDA version 12.4.
-- For inference, we have tested on Ubuntu 20.04 and 22.04, GPU: 4090, A6000
+- We have tested the code on Ubuntu 20.04 and 22.04, GPU: H100, L40, RTX 4090 and A6000 for finetuning and Python==3.10, CUDA version 12.4.
+- For inference, we have tested on Ubuntu 20.04 and 22.04, GPU: RTX 4090 and A6000
+- If you haven't installed CUDA 12.4, please follow the instructions [here](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/) to install it.
 - Please make sure you have the following dependencies installed in your system: `ffmpeg`, `libsm6`, `libxext6`
-
 
 ## Installation Guide
 
@@ -87,27 +94,9 @@ We provide accessible Jupyter notebooks and detailed documentations in the [`./g
 
 ## 1. Data Format & Loading
 
-- To load and process the data, we use [Huggingface LeRobot data](https://github.com/huggingface/lerobot), but with a more detailed metadata and annotation schema (we call it "LeRobot compatible data schema").
-- This schema requires data to be formatted in a specific directory structure to be able to load it. 
-- This is an example of the schema that is stored here: `./demo_data/robot_sim.PickNPlace` 
-```
-.
-├─meta 
-│ ├─episodes.jsonl
-│ ├─modality.json
-│ ├─info.json
-│ └─tasks.jsonl
-├─videos
-│ └─chunk-000
-│   └─observation.images.ego_view
-│     └─episode_000001.mp4
-│     └─episode_000000.mp4
-└─data
-  └─chunk-000
-    ├─episode_000001.parquet
-    └─episode_000000.parquet
-```
-- Data organization guide is available in [`getting_started/LeRobot_compatible_data_schema.md`](getting_started/LeRobot_compatible_data_schema.md)
+- To load and process the data, we use [Huggingface LeRobot data](https://github.com/huggingface/lerobot), but with a more detailed modality and annotation schema (we call it "LeRobot compatible data schema").
+- An example of LeRobot dataset is stored here: `./demo_data/robot_sim.PickNPlace`. (with additional [`modality.json`](./demo_data/robot_sim.PickNPlace/meta/modality.json) file)
+- Detailed explanation of the dataset format is available in [`getting_started/LeRobot_compatible_data_schema.md`](getting_started/LeRobot_compatible_data_schema.md)
 - Once your data is organized in this format, you can load the data using `LeRobotSingleDataset` class.
 
 ```python
@@ -127,7 +116,7 @@ transforms = data_config.transform()
 dataset = LeRobotSingleDataset(
     dataset_path="demo_data/robot_sim.PickNPlace",
     modality_configs=modality_config,
-    transforms=transforms,
+    transforms=None,  # we can choose to not apply any transforms
     embodiment_tag=EmbodimentTag.GR1, # the embodiment to use
 )
 
@@ -153,7 +142,7 @@ modality_config = ComposedModalityConfig(...)
 transforms = ComposedModalityTransform(...)
 
 # 2. Load the dataset
-dataset = LeRobotSingleDataset(.....<Similar to the loading section above>....)
+dataset = LeRobotSingleDataset(.....<Same as above>....)
 
 # 3. Load pre-trained model
 policy = Gr00tPolicy(
@@ -192,6 +181,9 @@ python scripts/gr00t_finetune.py --help
 
 # then run the script
 python scripts/gr00t_finetune.py --dataset-path ./demo_data/robot_sim.PickNPlace --num-gpus 1
+
+# run using Lora Parameter Eifficient Fine-Tuning
+python scripts/gr00t_finetune.py  --dataset-path ./demo_data/robot_sim.PickNPlace --num-gpus 1 --lora_rank 64  --lora_alpha 128  --batch-size 32
 ```
 
 You can also download a sample dataset from our huggingface sim data release [here](https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim)
@@ -206,7 +198,7 @@ huggingface-cli download  nvidia/PhysicalAI-Robotics-GR00T-X-Embodiment-Sim \
 The recommended finetuning configurations is to boost your batch size to the max, and train for 20k steps.
 
 *Hardware Performance Considerations*
-- **Finetuning Performance**: We used 1 H100 node or L40 node for optimal finetuning. Other hardware configurations (e.g. A6000, RTX4090) will also work but may take longer to converge. The exact batch size is dependent on the hardware, and on which component of the model is being tuned.
+- **Finetuning Performance**: We used 1 H100 node or L40 node for optimal finetuning. Other hardware configurations (e.g. A6000, RTX 4090) will also work but may take longer to converge. The exact batch size is dependent on the hardware, and on which component of the model is being tuned.
 - **Inference Performance**: For real-time inference, most modern GPUs perform similarly when processing a single sample. Our benchmarks show minimal difference between L40 and RTX 4090 for inference speed.
 
 For new embodiment finetuning, checkout our notebook in [`getting_started/3_new_embodiment_finetuning.ipynb`](getting_started/3_new_embodiment_finetuning.ipynb).
