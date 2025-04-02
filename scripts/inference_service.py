@@ -21,7 +21,8 @@ from gr00t.eval.robot import RobotInferenceClient, RobotInferenceServer
 from gr00t.experiment.data_config import DATA_CONFIG_MAP
 from gr00t.model.policy import Gr00tPolicy
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model_path",
@@ -118,3 +119,7 @@ if __name__ == "__main__":
 
     else:
         raise ValueError("Please specify either --server or --client")
+
+
+if __name__ == "__main__":
+    main()
