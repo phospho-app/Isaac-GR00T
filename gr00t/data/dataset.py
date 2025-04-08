@@ -287,10 +287,10 @@ class LeRobotSingleDataset(Dataset):
             try:
                 channels = le_video_meta["shape"][le_video_meta["names"].index("channel")]
                 # PHOSPHO: fixed key error
-                fps = le_video_meta["info"]["video_fps"]
-            except ValueError:
-                channels = le_video_meta["shape"][le_video_meta["names"].index("channels")]
                 fps = le_video_meta["info"]["video.fps"]
+            except KeyError:
+                channels = le_video_meta["shape"][le_video_meta["names"].index("channels")]
+                fps = le_video_meta["info"]["video_fps"]
             simplified_modality_meta["video"][new_key] = {
                 "resolution": [width, height],
                 "channels": channels,
