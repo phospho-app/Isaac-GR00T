@@ -21,37 +21,8 @@ from gr00t.eval.robot import RobotInferenceClient, RobotInferenceServer
 from gr00t.experiment.data_config import DATA_CONFIG_MAP
 from gr00t.model.policy import Gr00tPolicy
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model_path",
-        type=str,
-        help="Path to the model checkpoint directory.",
-        default="nvidia/GR00T-N1-2B",
-    )
-    parser.add_argument(
-        "--embodiment_tag",
-        type=str,
-        help="The embodiment tag for the model.",
-        default="gr1",
-    )
-    parser.add_argument(
-        "--data_config",
-        type=str,
-        help="The name of the data config to use.",
-        choices=list(DATA_CONFIG_MAP.keys()),
-        default="gr1_arms_waist",
-    )
 
-    parser.add_argument("--port", type=int, help="Port number for the server.", default=5555)
-    parser.add_argument("--host", type=str, help="Host address for the server.", default="localhost")
-    # server mode
-    parser.add_argument("--server", action="store_true", help="Run the server.")
-    # client mode
-    parser.add_argument("--client", action="store_true", help="Run the client")
-    parser.add_argument("--denoising_steps", type=int, help="Number of denoising steps.", default=4)
-    args = parser.parse_args()
-
+def main(args):
     if args.server:
         # Create a policy
         # The `Gr00tPolicy` class is being used to create a policy object that encapsulates
@@ -118,3 +89,36 @@ if __name__ == "__main__":
 
     else:
         raise ValueError("Please specify either --server or --client")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        help="Path to the model checkpoint directory.",
+        default="nvidia/GR00T-N1-2B",
+    )
+    parser.add_argument(
+        "--embodiment_tag",
+        type=str,
+        help="The embodiment tag for the model.",
+        default="gr1",
+    )
+    parser.add_argument(
+        "--data_config",
+        type=str,
+        help="The name of the data config to use.",
+        choices=list(DATA_CONFIG_MAP.keys()),
+        default="gr1_arms_waist",
+    )
+
+    parser.add_argument("--port", type=int, help="Port number for the server.", default=5555)
+    parser.add_argument("--host", type=str, help="Host address for the server.", default="localhost")
+    # server mode
+    parser.add_argument("--server", action="store_true", help="Run the server.")
+    # client mode
+    parser.add_argument("--client", action="store_true", help="Run the client")
+    parser.add_argument("--denoising_steps", type=int, help="Number of denoising steps.", default=4)
+    args = parser.parse_args()
+    main(args)
