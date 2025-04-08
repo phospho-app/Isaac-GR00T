@@ -285,12 +285,19 @@ class LeRobotSingleDataset(Dataset):
             width = le_video_meta["shape"][le_video_meta["names"].index("width")]
             # NOTE(FH): different lerobot dataset versions have different keys for the number of channels and fps
             try:
-                channels = le_video_meta["shape"][le_video_meta["names"].index("channel")]
-                # PHOSPHO: fixed key error
-                fps = le_video_meta["info"]["video.fps"]
-            except KeyError:
                 channels = le_video_meta["shape"][le_video_meta["names"].index("channels")]
-                fps = le_video_meta["info"]["video_fps"]
+            except ValueError:
+                channels = le_video_meta["shape"][le_video_meta["names"].index("channel")]
+            try:
+                if "info" in le_video_meta.keys():
+                    fps = le_video_meta["info"]["video.fps"]
+                else:
+                    fps = le_video_meta["video_info"]["video.fps"]
+            except KeyError:
+                if "info" in le_video_meta.keys():
+                    fps = le_video_meta["info"]["video_fps"]
+                else:
+                    fps = le_video_meta["video_info"]["video_fps"]
             simplified_modality_meta["video"][new_key] = {
                 "resolution": [width, height],
                 "channels": channels,
