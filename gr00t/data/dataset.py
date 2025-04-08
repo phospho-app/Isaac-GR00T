@@ -294,7 +294,10 @@ class LeRobotSingleDataset(Dataset):
                 else:
                     fps = le_video_meta["video_info"]["video.fps"]
             except KeyError:
-                fps = le_video_meta["info"]["video_fps"]
+                if "info" in le_video_meta.keys():
+                    fps = le_video_meta["info"]["video_fps"]
+                else:
+                    fps = le_video_meta["video_info"]["video_fps"]
             simplified_modality_meta["video"][new_key] = {
                 "resolution": [width, height],
                 "channels": channels,
