@@ -39,6 +39,9 @@ class Config:
     dataset_path: str
     """Path to the dataset directory."""
 
+    eval_dataset_path: str = None
+    """Path to the evaluation dataset directory."""
+
     output_dir: str = "/tmp/gr00t"
     """Directory to save model checkpoints."""
 
@@ -134,6 +137,17 @@ def main(config: Config):
         video_backend=config.video_backend,
     )
 
+    if config.eval_dataset_path:
+        eval_dataset = LeRobotSingleDataset(
+            dataset_path=config.eval_dataset_path,
+            modality_configs=modality_configs,
+            transforms=transforms,
+            embodiment_tag=embodiment_tag,
+            video_backend=config.video_backend,
+        )
+    else:
+        eval_dataset = None
+
     # ------------ step 2: load model ------------
     model = GR00T_N1.from_pretrained(
         pretrained_model_name_or_path=config.base_model_path,
@@ -182,7 +196,8 @@ def main(config: Config):
         max_steps=config.max_steps,
         save_strategy="steps",
         save_steps=config.save_steps,
-        evaluation_strategy="no",
+        evaluation_strategy="steps",
+        eval_steps=5,  # TODO: remove hardcoded eval steps
         save_total_limit=8,
         report_to=config.report_to,
         seed=42,
@@ -195,6 +210,7 @@ def main(config: Config):
     # 2.2 run experiment
     experiment = TrainRunner(
         train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         model=model,
         training_args=training_args,
         resume_from_checkpoint=config.resume,
@@ -219,9 +235,9 @@ if __name__ == "__main__":
     available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
 
     # Validate GPU configuration
-    assert (
-        config.num_gpus <= available_gpus
-    ), f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    assert config.num_gpus <= available_gpus, (
+        f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    )
     assert config.num_gpus > 0, "Number of GPUs must be greater than 0"
     print(f"Using {config.num_gpus} GPUs")
 

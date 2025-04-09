@@ -127,8 +127,7 @@ class GR00T_N1(PreTrainedModel):
 
     def validate_data(self, action_head_outputs, backbone_outputs, is_training):
         fail_backbone = (
-            not isinstance(backbone_outputs, BatchFeature)
-            or BACKBONE_FEATURE_KEY not in backbone_outputs
+            not isinstance(backbone_outputs, BatchFeature) or BACKBONE_FEATURE_KEY not in backbone_outputs
         )
 
         if fail_backbone:
@@ -161,6 +160,7 @@ class GR00T_N1(PreTrainedModel):
     def forward(
         self,
         inputs: dict,
+        **kwargs,  # Add **kwargs to accept additional parameters like 'state' during evaluation
     ) -> BatchFeature:
         backbone_inputs, action_inputs = self.prepare_input(inputs)
         backbone_outputs = self.backbone(backbone_inputs)
@@ -171,6 +171,7 @@ class GR00T_N1(PreTrainedModel):
     def get_action(
         self,
         inputs: dict,
+        **kwargs,  # Add **kwargs to be consistent with forward method
     ) -> BatchFeature:
         backbone_inputs, action_inputs = self.prepare_input(inputs)
         # Because the behavior of backbones remains the same for training and inference, we can use `forward` for backbones.
@@ -221,13 +222,9 @@ class GR00T_N1(PreTrainedModel):
             )
             local_model_path = pretrained_model_name_or_path
 
-        pretrained_model = super().from_pretrained(
-            local_model_path, local_model_path=local_model_path, **kwargs
-        )
+        pretrained_model = super().from_pretrained(local_model_path, local_model_path=local_model_path, **kwargs)
 
-        pretrained_model.backbone.set_trainable_parameters(
-            tune_visual=tune_visual, tune_llm=tune_llm
-        )
+        pretrained_model.backbone.set_trainable_parameters(tune_visual=tune_visual, tune_llm=tune_llm)
         pretrained_model.action_head.set_trainable_parameters(
             tune_projector=tune_projector, tune_diffusion_model=tune_diffusion_model
         )

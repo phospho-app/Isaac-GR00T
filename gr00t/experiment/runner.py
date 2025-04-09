@@ -37,6 +37,7 @@ class TrainRunner:
         model: GR00T_N1,
         training_args: TrainingArguments,
         train_dataset: LeRobotSingleDataset,
+        eval_dataset: LeRobotSingleDataset = None,
         resume_from_checkpoint: bool = False,
     ):
         self.training_args = training_args
@@ -47,11 +48,11 @@ class TrainRunner:
         self.train_dataset = train_dataset
         # Set up training arguments
         training_args.run_name = (
-            training_args.output_dir.split("/")[-1]
-            if training_args.run_name is None
-            else training_args.run_name
+            training_args.output_dir.split("/")[-1] if training_args.run_name is None else training_args.run_name
         )
         print(f"Run name: {training_args.run_name}")
+        if eval_dataset is not None:
+            print("Eval dataset provided, will run evaluation")
 
         data_collator = DefaultDataCollatorGR00T(
             processor=EagleProcessor(),
@@ -67,6 +68,7 @@ class TrainRunner:
             train_dataset=train_dataset,
             data_collator=data_collator,
             compute_dtype=compute_dtype,
+            eval_dataset=eval_dataset,
         )
         self.trainer = trainer
 
@@ -77,9 +79,7 @@ class TrainRunner:
             if os.path.exists(self.exp_cfg_dir / "metadata.json"):
                 with open(self.exp_cfg_dir / "metadata.json", "r") as f:
                     metadata_json = json.load(f)
-            metadata_json.update(
-                {train_dataset.tag: train_dataset.metadata.model_dump(mode="json")}
-            )
+            metadata_json.update({train_dataset.tag: train_dataset.metadata.model_dump(mode="json")})
             with open(self.exp_cfg_dir / "metadata.json", "w") as f:
                 json.dump(metadata_json, f, indent=4)
 
@@ -119,6 +119,7 @@ class TrainRunner:
         data_collator,
         compute_dtype,
         global_batch_size=None,
+        eval_dataset=None,
     ):
         # Set the gradient accumulation steps if global_batch_size is provided
         if global_batch_size is not None:
@@ -126,9 +127,7 @@ class TrainRunner:
             num_gpus = torch.cuda.device_count()
             grad_acc = max(1, global_batch_size // (bs * num_gpus))
             training_args.gradient_accumulation_steps = grad_acc
-            print(
-                f"Set global batch size to {global_batch_size}, set gradient accumulation steps to {grad_acc}"
-            )
+            print(f"Set global batch size to {global_batch_size}, set gradient accumulation steps to {grad_acc}")
 
         # Create the trainer
         trainer = DualBrainTrainer(
@@ -137,13 +136,12 @@ class TrainRunner:
             train_dataset=train_dataset,
             data_collator=data_collator,
             compute_dtype=compute_dtype,
+            eval_dataset=eval_dataset,
         )
 
         # Add checkpoint format callback to ensure experiment_cfg is copied to each checkpoint
         run_name = training_args.run_name
-        ckpt_format_callback = CheckpointFormatCallback(
-            run_name=run_name, exp_cfg_dir=self.exp_cfg_dir
-        )
+        ckpt_format_callback = CheckpointFormatCallback(run_name=run_name, exp_cfg_dir=self.exp_cfg_dir)
         trainer.add_callback(ckpt_format_callback)
 
         # Log dataloader information
