@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any, Callable, Dict
 
 import zmq
-import pickle
 
 
 class TorchSerializer:
@@ -96,7 +96,11 @@ class BaseInferenceServer:
                     raise ValueError(f"Unknown endpoint: {endpoint}")
 
                 handler = self._endpoints[endpoint]
-                result = handler.handler(request.get("data", {})) if handler.requires_input else handler.handler()
+                result = (
+                    handler.handler(request.get("data", {}))
+                    if handler.requires_input
+                    else handler.handler()
+                )
                 self.socket.send(TorchSerializer.to_bytes(result))
             except Exception as e:
                 print(f"Error in server: {e}")
@@ -133,7 +137,9 @@ class BaseInferenceClient:
         """
         self.call_endpoint("kill", requires_input=False)
 
-    def call_endpoint(self, endpoint: str, data: dict | None = None, requires_input: bool = True) -> dict:
+    def call_endpoint(
+        self, endpoint: str, data: dict | None = None, requires_input: bool = True
+    ) -> dict:
         """
         Call an endpoint on the server.
 

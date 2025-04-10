@@ -114,7 +114,9 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--port", type=int, help="Port number for the server.", default=5555)
-    parser.add_argument("--host", type=str, help="Host address for the server.", default="localhost")
+    parser.add_argument(
+        "--host", type=str, help="Host address for the server.", default="localhost"
+    )
     # server mode
     parser.add_argument("--server", action="store_true", help="Run the server.")
     # client mode

@@ -16,7 +16,6 @@
 from typing import Any, Dict
 
 from gr00t.data.dataset import ModalityConfig
-
 from gr00t.eval.service import BaseInferenceClient, BaseInferenceServer
 from gr00t.model.policy import BasePolicy
 
@@ -29,7 +28,9 @@ class RobotInferenceServer(BaseInferenceServer):
     def __init__(self, model, host: str = "*", port: int = 5555):
         super().__init__(host, port)
         self.register_endpoint("get_action", model.get_action)
-        self.register_endpoint("get_modality_config", model.get_modality_config, requires_input=False)
+        self.register_endpoint(
+            "get_modality_config", model.get_modality_config, requires_input=False
+        )
 
     @staticmethod
     def start_server(policy: BasePolicy, port: int):
