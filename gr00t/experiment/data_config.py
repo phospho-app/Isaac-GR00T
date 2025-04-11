@@ -315,16 +315,16 @@ class DoubleSo100DataConfig(BaseDataConfig):
 
     video_keys = ["video.cam_wrist_left", "video.cam_wrist_right"]
     state_keys = [
-        "state.single_arm",
-        "state.gripper",
-        "state.second_single_arm",
-        "state.second_gripper",
+        "state.left_arm",
+        "state.left_gripper",
+        "state.right_arm",
+        "state.right_gripper",
     ]
     action_keys = [
-        "action.single_arm",
-        "action.gripper",
-        "action.second_single_arm",
-        "action.second_gripper",
+        "action.left_arm",
+        "action.left_gripper",
+        "action.right_arm",
+        "action.right_gripper",
     ]
     language_keys = ["annotation.human.task_description"]
     observation_indices = [0]
@@ -413,16 +413,16 @@ class DoubleSo100WCDataConfig(BaseDataConfig):
 
     video_keys = ["video.cam_context", "video.cam_wrist_left", "video.cam_wrist_right"]
     state_keys = [
-        "state.single_arm",
-        "state.gripper",
-        "state.second_single_arm",
-        "state.second_gripper",
+        "state.left_arm",
+        "state.left_gripper",
+        "state.right_arm",
+        "state.right_gripper",
     ]
     action_keys = [
-        "action.single_arm",
-        "action.gripper",
-        "action.second_single_arm",
-        "action.second_gripper",
+        "action.left_arm",
+        "action.left_gripper",
+        "action.right_arm",
+        "action.right_gripper",
     ]
     language_keys = ["annotation.human.task_description"]
     observation_indices = [0]
