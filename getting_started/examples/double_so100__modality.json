@@ -36,10 +36,10 @@
         }
     },
     "video": {
-        "cam_left_wrist": {
+        "cam_wrist_left": {
             "original_key": "observation.images.main"
         },
-        "cam_right_wrist": {
+        "cam_wrist_right": {
             "original_key": "observation.images.secondary_0"
         }
     },
