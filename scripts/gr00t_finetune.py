@@ -39,6 +39,16 @@ class Config:
     dataset_path: str
     """Path to the dataset directory."""
 
+    # Validation dataset parameters
+    validation_dataset_path: str = None
+    """Path to the validation dataset directory. If not provided, no validation will be performed."""
+
+    evaluation_strategy: str = "no"
+    """Evaluation strategy. [no, steps, epoch]"""
+
+    do_eval: bool = False
+    """Whether to perform evaluation."""
+
     output_dir: str = "/tmp/gr00t"
     """Directory to save model checkpoints."""
 
@@ -134,6 +144,15 @@ def main(config: Config):
         video_backend=config.video_backend,
     )
 
+    if config.do_eval:
+        eval_dataset = LeRobotSingleDataset(
+            dataset_path=config.validation_dataset_path,
+            modality_configs=modality_configs,
+            transforms=transforms,
+            embodiment_tag=embodiment_tag,
+            video_backend=config.video_backend,
+        )
+
     # ------------ step 2: load model ------------
     model = GR00T_N1.from_pretrained(
         pretrained_model_name_or_path=config.base_model_path,
@@ -182,23 +201,32 @@ def main(config: Config):
         max_steps=config.max_steps,
         save_strategy="steps",
         save_steps=config.save_steps,
-        evaluation_strategy="no",
+        evaluation_strategy=config.evaluation_strategy,
+        eval_steps=5,  # TODO: remove hardcoded eval steps
         save_total_limit=8,
         report_to=config.report_to,
         seed=42,
-        do_eval=False,
+        do_eval=config.do_eval,
         ddp_find_unused_parameters=False,
         ddp_bucket_cap_mb=100,
         torch_compile_mode=None,
     )
 
     # 2.2 run experiment
-    experiment = TrainRunner(
-        train_dataset=train_dataset,
-        model=model,
-        training_args=training_args,
-        resume_from_checkpoint=config.resume,
-    )
+    if config.do_eval:
+        experiment = TrainRunner(
+            train_dataset=train_dataset,
+            model=model,
+            training_args=training_args,
+            resume_from_checkpoint=config.resume,
+        )
+    else:
+        experiment = TrainRunner(
+            train_dataset=train_dataset,
+            model=model,
+            training_args=training_args,
+            resume_from_checkpoint=config.resume,
+        )
 
     # 2.3 run experiment
     experiment.train()
@@ -219,9 +247,9 @@ if __name__ == "__main__":
     available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
 
     # Validate GPU configuration
-    assert (
-        config.num_gpus <= available_gpus
-    ), f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    assert config.num_gpus <= available_gpus, (
+        f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    )
     assert config.num_gpus > 0, "Number of GPUs must be greater than 0"
     print(f"Using {config.num_gpus} GPUs")
 
