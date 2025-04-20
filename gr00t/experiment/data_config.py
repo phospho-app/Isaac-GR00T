@@ -313,7 +313,7 @@ class So100W2CDataConfig(BaseDataConfig):
     phospho setup with one SO100 arm, a context cam and a wrist cam
     """
 
-    video_keys = ["video.cam_context_1", "video.cam_wrist_2", "video.cam_wrist"]
+    video_keys = ["video.cam_context_1", "video.cam_context_2", "video.cam_wrist"]
     state_keys = ["state.single_arm", "state.gripper"]
     action_keys = ["action.single_arm", "action.gripper"]
     language_keys = ["annotation.human.task_description"]
