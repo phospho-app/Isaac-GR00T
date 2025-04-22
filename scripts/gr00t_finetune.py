@@ -25,7 +25,7 @@ from transformers import TrainingArguments
 
 from gr00t.data.dataset import LeRobotSingleDataset
 from gr00t.data.schema import EmbodimentTag
-from gr00t.experiment.data_config import DATA_CONFIG_MAP
+from gr00t.experiment.data_config import ConfigGenerator
 from gr00t.experiment.runner import TrainRunner
 from gr00t.model.gr00t_n1 import GR00T_N1
 from gr00t.utils.peft import get_lora_model
@@ -45,12 +45,21 @@ class Config:
     data_config: str = "gr1_arms_only"
     """Data configuration name from DATA_CONFIG_MAP."""
 
+    num_arms: int = 1
+    """Number of arms to use for training. Should be greater or equal to 1"""
+
+    num_cams: int = 1
+    """Number of cameras to use for training. Should be greater or equal to 1"""
+
     # Training parameters
     batch_size: int = 16
     """Batch size per GPU for training."""
 
     max_steps: int = 10000
     """Maximum number of training steps."""
+
+    num_epochs: int = 10
+    """Number of epochs to train for."""
 
     num_gpus: int = 1
     """Number of GPUs to use for training."""
@@ -121,7 +130,7 @@ def main(config: Config):
     embodiment_tag = EmbodimentTag(config.embodiment_tag)
 
     # 1.1 modality configs and transforms
-    data_config_cls = DATA_CONFIG_MAP[config.data_config]
+    data_config_cls = ConfigGenerator(num_arms=config.num_arms, num_cams=config.num_cams)
     modality_configs = data_config_cls.modality_config()
     transforms = data_config_cls.transform()
 
@@ -178,8 +187,7 @@ def main(config: Config):
         warmup_ratio=config.warmup_ratio,
         lr_scheduler_type="cosine",
         logging_steps=10.0,
-        num_train_epochs=300,
-        max_steps=config.max_steps,
+        num_train_epochs=config.num_epochs,
         save_strategy="steps",
         save_steps=config.save_steps,
         evaluation_strategy="no",
@@ -219,9 +227,9 @@ if __name__ == "__main__":
     available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
 
     # Validate GPU configuration
-    assert (
-        config.num_gpus <= available_gpus
-    ), f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    assert config.num_gpus <= available_gpus, (
+        f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    )
     assert config.num_gpus > 0, "Number of GPUs must be greater than 0"
     print(f"Using {config.num_gpus} GPUs")
 
