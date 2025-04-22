@@ -110,8 +110,11 @@ class Config:
     video_backend: str = "decord"
     """Video backend to use for training. [decord, torchvision_av]"""
 
+    train_test_split: float = 1
+    """Percentage of data for training. Example: 1 means you train on 100% of your data"""
 
-def evaluate(model, dataset, batch_size=8):
+
+def evaluate(model, dataset, batch_size=8) -> float:
     model.eval()
     eval_loader = DataLoader(dataset, batch_size=batch_size)
     total_loss = 0.0
@@ -155,7 +158,7 @@ def main(config: Config):
     )
 
     # Split 80/20 train/eval
-    train_size = int(0.8 * len(full_dataset))
+    train_size = int(config.train_test_split * len(full_dataset))
     eval_size = len(full_dataset) - train_size
     train_dataset, eval_dataset = random_split(full_dataset, [train_size, eval_size])
 
