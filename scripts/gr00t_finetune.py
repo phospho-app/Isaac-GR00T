@@ -227,9 +227,9 @@ if __name__ == "__main__":
     available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
 
     # Validate GPU configuration
-    assert config.num_gpus <= available_gpus, (
-        f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
-    )
+    assert (
+        config.num_gpus <= available_gpus
+    ), f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
     assert config.num_gpus > 0, "Number of GPUs must be greater than 0"
     print(f"Using {config.num_gpus} GPUs")
 
