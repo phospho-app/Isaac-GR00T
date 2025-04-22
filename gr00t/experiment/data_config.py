@@ -18,7 +18,11 @@ from abc import ABC, abstractmethod
 from gr00t.data.dataset import ModalityConfig
 from gr00t.data.transform.base import ComposedModalityTransform, ModalityTransform
 from gr00t.data.transform.concat import ConcatTransform
-from gr00t.data.transform.state_action import StateActionToTensor, StateActionTransform
+from gr00t.data.transform.state_action import (
+    StateActionSinCosTransform,
+    StateActionToTensor,
+    StateActionTransform,
+)
 from gr00t.data.transform.video import (
     VideoColorJitter,
     VideoCrop,
@@ -106,10 +110,7 @@ class Gr1ArmsOnlyDataConfig(BaseDataConfig):
             VideoToNumpy(apply_to=self.video_keys),
             # state transforms
             StateActionToTensor(apply_to=self.state_keys),
-            StateActionTransform(
-                apply_to=self.state_keys,
-                normalization_modes={key: "min_max" for key in self.state_keys},
-            ),
+            StateActionSinCosTransform(apply_to=self.state_keys),
             # action transforms
             StateActionToTensor(apply_to=self.action_keys),
             StateActionTransform(
@@ -853,27 +854,13 @@ class Gr1FullUpperBodyDataConfig(BaseDataConfig):
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,
-                normalization_modes={
-                    "state.left_arm": "min_max",
-                    "state.right_arm": "min_max",
-                    "state.left_hand": "min_max",
-                    "state.right_hand": "min_max",
-                    "state.waist": "min_max",
-                    "state.neck": "min_max",
-                },
+                normalization_modes={key: "min_max" for key in self.state_keys},
             ),
             # action transforms
             StateActionToTensor(apply_to=self.action_keys),
             StateActionTransform(
                 apply_to=self.action_keys,
-                normalization_modes={
-                    "action.right_arm": "min_max",
-                    "action.left_arm": "min_max",
-                    "action.right_hand": "min_max",
-                    "action.left_hand": "min_max",
-                    "action.waist": "min_max",
-                    "action.neck": "min_max",
-                },
+                normalization_modes={key: "min_max" for key in self.action_keys},
             ),
             # concat transforms
             ConcatTransform(
@@ -1254,6 +1241,209 @@ class Gr1ArmsWaistDataConfig(Gr1ArmsOnlyDataConfig):
 
 
 ###########################################################################################
+
+
+class ConfigGenerator(BaseDataConfig):
+    """
+    phospho config generator for so100 arms
+    Will name video keys as video.image_cam_<cam_id>
+    Will name state keys as state.arm_<arm_id> and state.gripper_<arm_id>
+    Will name action keys as action.arm_<arm_id> and action.gripper_<arm_id>
+    """
+
+    def __init__(self, num_arms: int, num_cams: int):
+        super().__init__()
+        self.num_arms = num_arms
+        self.num_cams = num_cams
+
+        self.video_keys = ["video.image_cam_{}".format(i) for i in range(num_cams)]
+
+        state_keys: list[str] = []
+        action_keys: list[str] = []
+
+        for i in range(num_arms):
+            state_keys.append("state.arm_{}".format(i))
+            action_keys.append("action.arm_{}".format(i))
+
+        self.state_keys = state_keys
+        self.action_keys = action_keys
+
+        self.language_keys = ["annotation.human.task_description"]
+
+        self.observation_indices = [0]
+        self.action_indices = list(range(16))
+
+    def modality_config(self) -> dict[str, ModalityConfig]:
+        video_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.video_keys,
+        )
+
+        state_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.state_keys,
+        )
+
+        action_modality = ModalityConfig(
+            delta_indices=self.action_indices,
+            modality_keys=self.action_keys,
+        )
+
+        language_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.language_keys,
+        )
+
+        modality_configs = {
+            "video": video_modality,
+            "state": state_modality,
+            "action": action_modality,
+            "language": language_modality,
+        }
+
+        return modality_configs
+
+    def transform(self) -> ModalityTransform:
+        transforms = [
+            # video transforms
+            VideoToTensor(apply_to=self.video_keys),
+            VideoCrop(apply_to=self.video_keys, scale=0.95),
+            VideoResize(apply_to=self.video_keys, height=224, width=224, interpolation="linear"),
+            VideoColorJitter(
+                apply_to=self.video_keys,
+                brightness=0.3,
+                contrast=0.4,
+                saturation=0.5,
+                hue=0.08,
+            ),
+            VideoToNumpy(apply_to=self.video_keys),
+            # state transforms
+            StateActionToTensor(apply_to=self.state_keys),
+            StateActionTransform(
+                apply_to=self.state_keys,
+                normalization_modes={key: "min_max" for key in self.state_keys},
+            ),
+            # action transforms
+            StateActionToTensor(apply_to=self.action_keys),
+            StateActionTransform(
+                apply_to=self.action_keys,
+                normalization_modes={key: "min_max" for key in self.action_keys},
+            ),
+            # concat transforms
+            ConcatTransform(
+                video_concat_order=self.video_keys,
+                state_concat_order=self.state_keys,
+                action_concat_order=self.action_keys,
+            ),
+            # model-specific transform
+            GR00TTransform(
+                state_horizon=len(self.observation_indices),
+                action_horizon=len(self.action_indices),
+                max_state_dim=64,
+                max_action_dim=32,
+            ),
+        ]
+        return ComposedModalityTransform(transforms=transforms)
+
+
+###########################################################################################
+
+
+class ConfigGeneratorFromNames(BaseDataConfig):
+    """
+    phospho config generator for so100 arms
+    Will name video keys as the given parameters
+    Will name state keys as the given parameters
+    Will name action keys as the given parameters
+    """
+
+    def __init__(self, video_keys: list[str], state_keys: list[str], action_keys: list[str]):
+        super().__init__()
+
+        self.video_keys = video_keys
+        self.state_keys = state_keys
+        self.action_keys = action_keys
+
+        self.language_keys = ["annotation.human.task_description"]
+
+        self.observation_indices = [0]
+        self.action_indices = list(range(16))
+
+    def modality_config(self) -> dict[str, ModalityConfig]:
+        video_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.video_keys,
+        )
+
+        state_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.state_keys,
+        )
+
+        action_modality = ModalityConfig(
+            delta_indices=self.action_indices,
+            modality_keys=self.action_keys,
+        )
+
+        language_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.language_keys,
+        )
+
+        modality_configs = {
+            "video": video_modality,
+            "state": state_modality,
+            "action": action_modality,
+            "language": language_modality,
+        }
+
+        return modality_configs
+
+    def transform(self) -> ModalityTransform:
+        transforms = [
+            # video transforms
+            VideoToTensor(apply_to=self.video_keys),
+            VideoCrop(apply_to=self.video_keys, scale=0.95),
+            VideoResize(apply_to=self.video_keys, height=224, width=224, interpolation="linear"),
+            VideoColorJitter(
+                apply_to=self.video_keys,
+                brightness=0.3,
+                contrast=0.4,
+                saturation=0.5,
+                hue=0.08,
+            ),
+            VideoToNumpy(apply_to=self.video_keys),
+            # state transforms
+            StateActionToTensor(apply_to=self.state_keys),
+            StateActionTransform(
+                apply_to=self.state_keys,
+                normalization_modes={key: "min_max" for key in self.state_keys},
+            ),
+            # action transforms
+            StateActionToTensor(apply_to=self.action_keys),
+            StateActionTransform(
+                apply_to=self.action_keys,
+                normalization_modes={key: "min_max" for key in self.action_keys},
+            ),
+            # concat transforms
+            ConcatTransform(
+                video_concat_order=self.video_keys,
+                state_concat_order=self.state_keys,
+                action_concat_order=self.action_keys,
+            ),
+            # model-specific transform
+            GR00TTransform(
+                state_horizon=len(self.observation_indices),
+                action_horizon=len(self.action_indices),
+                max_state_dim=64,
+                max_action_dim=32,
+            ),
+        ]
+        return ComposedModalityTransform(transforms=transforms)
+
+
+###########################################################################################
+
 
 DATA_CONFIG_MAP = {
     "gr1_arms_waist": Gr1ArmsWaistDataConfig(),
