@@ -29,6 +29,7 @@ from gr00t.experiment.data_config import ConfigGenerator
 from gr00t.experiment.runner import TrainRunner
 from gr00t.model.gr00t_n1 import GR00T_N1
 from gr00t.utils.peft import get_lora_model
+from torch.utils.data import random_split, DataLoader
 
 
 @dataclass
@@ -118,6 +119,28 @@ class Config:
     video_backend: str = "decord"
     """Video backend to use for training. [decord, torchvision_av]"""
 
+    train_test_split: float = 1
+    """Percentage of data for training. Example: 1 means you train on 100% of your data"""
+
+
+def evaluate(model, dataset, batch_size=8) -> float:
+    model.eval()
+    eval_loader = DataLoader(dataset, batch_size=batch_size)
+    total_loss = 0.0
+    criterion = torch.nn.MSELoss()  # À adapter selon ta task
+
+    with torch.no_grad():
+        for batch in eval_loader:
+            # 🔧 adapte ces lignes selon la structure de ton dataset
+            inputs = batch["input"]
+            targets = batch["target"]
+
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            total_loss += loss.item()
+
+    return total_loss / len(eval_loader)
+
 
 #####################################################################################
 # main training function
@@ -135,13 +158,21 @@ def main(config: Config):
     transforms = data_config_cls.transform()
 
     # 1.2 data loader
-    train_dataset = LeRobotSingleDataset(
-        dataset_path=config.dataset_path,
-        modality_configs=modality_configs,
-        transforms=transforms,
-        embodiment_tag=embodiment_tag,  # This will override the dataset's embodiment tag to "new_embodiment"
-        video_backend=config.video_backend,
+    full_dataset = LeRobotSingleDataset(
+    dataset_path=config.dataset_path,
+    modality_configs=modality_configs,
+    transforms=transforms,
+    embodiment_tag=embodiment_tag,
+    video_backend=config.video_backend,
     )
+
+    # Split 80/20 train/eval
+    if config.train_test_split < 1:
+        train_size = int(config.train_test_split * len(full_dataset))
+        eval_size = len(full_dataset) - train_size
+        train_dataset, eval_dataset = random_split(full_dataset, [train_size, eval_size])
+    else:
+        train_dataset = full_dataset
 
     # ------------ step 2: load model ------------
     model = GR00T_N1.from_pretrained(
@@ -210,6 +241,13 @@ def main(config: Config):
 
     # 2.3 run experiment
     experiment.train()
+
+    if config.train_test_split < 1:
+        # 🧪 Evaluation + log dans wandb
+        eval_loss = evaluate(model, eval_dataset, batch_size=config.batch_size)
+
+        import wandb
+        wandb.log({"eval/loss": eval_loss})
 
 
 if __name__ == "__main__":
