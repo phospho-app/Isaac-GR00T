@@ -167,9 +167,12 @@ def main(config: Config):
     )
 
     # Split 80/20 train/eval
-    train_size = int(config.train_test_split * len(full_dataset))
-    eval_size = len(full_dataset) - train_size
-    train_dataset, eval_dataset = random_split(full_dataset, [train_size, eval_size])
+    if config.train_test_split < 1:
+        train_size = int(config.train_test_split * len(full_dataset))
+        eval_size = len(full_dataset) - train_size
+        train_dataset, eval_dataset = random_split(full_dataset, [train_size, eval_size])
+    else:
+        train_dataset = full_dataset
 
     # ------------ step 2: load model ------------
     model = GR00T_N1.from_pretrained(
