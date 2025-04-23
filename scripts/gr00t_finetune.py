@@ -238,11 +238,13 @@ def main(config: Config):
 
     # 2.3 run experiment
     experiment.train()
-    # 🧪 Evaluation + log dans wandb
-    eval_loss = evaluate(model, eval_dataset, batch_size=config.batch_size)
 
-    import wandb
-    wandb.log({"eval/loss": eval_loss})
+    if config.train_test_split < 1:
+        # 🧪 Evaluation + log dans wandb
+        eval_loss = evaluate(model, eval_dataset, batch_size=config.batch_size)
+
+        import wandb
+        wandb.log({"eval/loss": eval_loss})
 
 
 if __name__ == "__main__":
