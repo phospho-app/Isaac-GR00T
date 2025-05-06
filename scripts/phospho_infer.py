@@ -1,26 +1,32 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "cv2",
+#     "phosphobot",
+#     "torch",
+#     "zmq",
+# ]
+# ///
 import time
 
 import cv2
 import numpy as np
-from phosphobot.api.client import PhosphoApi
+
+from phosphobot.am import Gr00tN1
+import httpx
 from phosphobot.camera import AllCameras
 
-from gr00t.eval.robot import RobotInferenceClient
-
-host = "20.199.85.87"
+host = "YOUR_SERVER_IP"  # Change this to your server IP (this is the IP of the machine running the Gr00tN1 server using a GPU)
 port = 5555
 
-# Change this by your task description
-TASK_DESCRIPTION = "Pick up the green lego brick from table and place it into the black container."
+# Change this with your task description
+TASK_DESCRIPTION = "Pick up the green lego brick from the table and put it in the black container."
 
-# Connect to the phosphobot server
-client = PhosphoApi(base_url="http://localhost:80")
+# Connect to the phosphobot server, this is different from the server IP above
+PHOSPHOBOT_API_URL = "http://localhost:80"
 
-# Get a camera frame
 allcameras = AllCameras()
-
-# Need to wait for the cameras to initialize
-time.sleep(1)
+time.sleep(1)  # Wait for the cameras to initialize
 
 while True:
     images = [
@@ -30,48 +36,47 @@ while True:
 
     for i in range(0, len(images)):
         image = images[i]
+        if image is None:
+            print(f"Camera {i} is not available.")
+            continue
 
-        # Convert to BGR
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         # Add a batch dimension (from (240, 320, 3) to (1, 240, 320, 3))
         converted_array = np.expand_dims(image, axis=0)
-
-        # Ensure dtype is uint8 (if it isn’t already)
         converted_array = converted_array.astype(np.uint8)
-
         images[i] = converted_array
 
-    # Create a policy wrapper
-    policy_client = RobotInferenceClient(host=host)
+    # Create the model, you might need to change the action keys based on your model, these can be found in the experiment_cfg/metadata.json file of your Gr00tN1 model
+    model = Gr00tN1(server_url=host, server_port=port)
 
-    state = np.array(client.control.read_joints().angles_rad)
+    response = httpx.post(f"{PHOSPHOBOT_API_URL}/joints/read").json()
+    state = response["angles_rad"]
+    # Take a look at the experiment_cfg/metadata.json file in your Gr00t model and check the names of the images, states, and observations
+    # You may need to adapt the obs JSON to match these names
+    # The following JSON should work for one arm and 2 video cameras
     obs = {
-        "video.cam_context": images[0],
-        "video.cam_wrist": images[1],
-        "state.single_arm": state[0:5].reshape(1, 5),
-        "state.gripper": np.array([state[5]]).reshape(1, 1),
+        "video.image_cam_0": images[0],
+        "video.image_cam_1": images[1],
+        "state.arm": state[0:6].reshape(1, 6),
         "annotation.human.action.task_description": [TASK_DESCRIPTION],
     }
+    # Uncomment this if you want to use this script for a bimanual setup
+    #
+    # You may also need to change the name and order of the images based on their incoming order and names in the experiment_cfg/metadata.json file in your model
+    #
+    # obs = {
+    #     "video.image_cam_0": images[0],
+    #     "video.image_cam_1": images[1],
+    #     "video.image_cam_2": images[2],
+    #     "state.arm_0": state[0:6].reshape(1, 6),
+    #     "state.arm_1": state[6:12].reshape(1, 6),
+    #     "annotation.human.action.task_description": [TASK_DESCRIPTION],
+    # }
 
-    # print("-> obs keys")
-    # for key in obs.keys():
-    #     print(obs[key].shape)
+    action = model.sample_actions(obs)
 
-    response = policy_client.get_action(obs)
-
-    for i in range(0, response["action.single_arm"].shape[0]):
-        arm_action = response["action.single_arm"][i]
-        gripper_action = response["action.gripper"][i]
-
-        # action = np.concatenate((arm_action, gripper_action))
-        action = np.append(arm_action, gripper_action)
-
-        # Add a condition to force the gripper to close
-        if action[-1] < 0.35:
-            print(f"Overide to close gripper for: {action[-1]}")
-            action[-1] = 0.0
-
-        client.control.write_joints(angles=action.tolist())
+    for i in range(0, action.shape[0]):
+        httpx.post(f"{PHOSPHOBOT_API_URL}/joints/write", json={"angles": action[i].tolist()})
         # Wait to respect frequency control (30 Hz)
         time.sleep(1 / 30)
