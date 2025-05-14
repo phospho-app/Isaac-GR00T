@@ -1,5 +1,10 @@
 [build-system]
-requires = ["setuptools>=64.0.0", "wheel", "pip>=21.3", "setuptools_scm[toml]>=6.2"]
+requires = [
+    "setuptools>=64.0.0",
+    "wheel",
+    "pip>=21.3",
+    "setuptools_scm[toml]>=6.2",
+]
 build-backend = "setuptools.build_meta:__legacy__"
 
 [project]
@@ -12,9 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-authors = [
-    {name = "GEAR", email = "linxif@nvidia.com"}
-]
+authors = [{ name = "GEAR", email = "linxif@nvidia.com" }]
 requires-python = ">=3.10"
 dependencies = [
     "albumentations==1.4.18",
@@ -55,7 +58,7 @@ dependencies = [
     "torch==2.5.1",
     "torchvision==0.20.1",
     "accelerate==1.2.1",
-    "pyav",
+    "av",
     "peft==0.14.0",
     "protobuf==3.20.3",
     "tyro",
@@ -64,13 +67,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "ruff",
-    "mypy>=1.0",
-    "black>=23.0",
-    "isort>=5.12",
-    "pytest",
-]
+dev = ["ruff", "mypy>=1.0", "black>=23.0", "isort>=5.12", "pytest"]
 
 [tool.setuptools.packages.find]
 exclude = [
@@ -90,7 +87,7 @@ include-package-data = true
 gr00t = ["py.typed"]
 
 [tool.setuptools.dynamic]
-version = {attr = "gr00t.version.VERSION"}
+version = { attr = "gr00t.version.VERSION" }
 
 [tool.black]
 line-length = 100
