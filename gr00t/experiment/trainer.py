@@ -15,7 +15,7 @@
 
 
 import os
-from typing import Optional, List
+from typing import Optional
 
 import torch
 import transformers
