@@ -15,7 +15,7 @@
 
 
 import os
-from typing import Optional
+from typing import Optional, List
 
 import torch
 import transformers
@@ -94,9 +94,7 @@ class DualBrainTrainer(transformers.Trainer):
             optimizer_grouped_parameters = [
                 {
                     "params": [
-                        p
-                        for n, p in opt_model.named_parameters()
-                        if (n in decay_parameters and p.requires_grad)
+                        p for n, p in opt_model.named_parameters() if (n in decay_parameters and p.requires_grad)
                     ],
                     "weight_decay": self.args.weight_decay,
                 },
@@ -110,9 +108,7 @@ class DualBrainTrainer(transformers.Trainer):
                 },
             ]
 
-            optimizer_cls, optimizer_kwargs = transformers.Trainer.get_optimizer_cls_and_kwargs(
-                self.args
-            )
+            optimizer_cls, optimizer_kwargs = transformers.Trainer.get_optimizer_cls_and_kwargs(self.args)
             self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
 
         return self.optimizer
@@ -141,13 +137,21 @@ class DualBrainTrainer(transformers.Trainer):
         if isinstance(resume_from_checkpoint, bool) and resume_from_checkpoint:
             resume_from_checkpoint = get_last_checkpoint(self.args.output_dir)
             if resume_from_checkpoint is None:
-                raise ValueError(
-                    f"No valid checkpoint found in output directory ({self.args.output_dir})"
-                )
+                raise ValueError(f"No valid checkpoint found in output directory ({self.args.output_dir})")
 
         if resume_from_checkpoint is not None:
             # In case of repeating the find_executable_batch_size, set `self._train_batch_size` properly
-            self.state = TrainerState.load_from_json(
-                os.path.join(resume_from_checkpoint, TRAINER_STATE_NAME)
-            )
+            self.state = TrainerState.load_from_json(os.path.join(resume_from_checkpoint, TRAINER_STATE_NAME))
+
         return super().train(resume_from_checkpoint, trial, ignore_keys_for_eval, **kwargs)
+
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
+        """
+        Perform a prediction step during evaluation, returning loss, predictions, and labels.
+        """
+        with torch.no_grad():
+            outputs = model(inputs)
+            loss = outputs["loss"].mean() if "loss" in outputs else None
+            action_pred = outputs["action_pred"] if "action_pred" in outputs else None
+            labels = inputs["action"] if "action" in inputs else None
+            return (loss, action_pred, labels)

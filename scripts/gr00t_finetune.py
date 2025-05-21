@@ -22,6 +22,7 @@ from pathlib import Path
 import torch
 import tyro
 from transformers import TrainingArguments
+import numpy as np
 
 from gr00t.data.dataset import LeRobotSingleDataset
 from gr00t.data.schema import EmbodimentTag
@@ -130,10 +131,28 @@ class Config:
 # Training utilities
 # ---------------------------------------------------------------------------
 
+
 def final_eval(runner: TrainRunner) -> float:
     """Run a final evaluation with the trainer and return the loss."""
     metrics = runner.evaluate()
     return metrics.get("eval_loss", 0.0)
+
+
+def compute_metrics(eval_pred):
+    """
+    Args
+    ----
+    eval_pred: transformers.EvalPrediction
+        .predictions: numpy array of shape (N, H, D)
+        .label_ids: numpy array of same shape
+
+    Returns
+    -------
+    dict: any number of scalar metrics keyed by name
+    """
+    preds, labels = eval_pred.predictions, eval_pred.label_ids
+    mse = np.mean((preds - labels) ** 2, dtype=np.float64)
+    return {"mse": mse}
 
 
 #####################################################################################
@@ -238,21 +257,29 @@ def main(config: Config):
     # 2.2 run experiment
     experiment = TrainRunner(
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
         model=model,
         training_args=training_args,
+        eval_dataset=eval_dataset,
         resume_from_checkpoint=config.resume,
+        compute_metrics=compute_metrics,
     )
 
     # 2.3 run experiment
     experiment.train()
 
-    if eval_dataset is not None:
-        # Final evaluation and log in wandb
-        eval_loss = final_eval(experiment)
+    # Evaluate the model on the validation set
+    # if eval_dataset is not None:
+    #     print("### EVALUATION RESULTS ###")
+    #     metrics = experiment.evaluate(eval_dataset=eval_dataset, ignore_keys=["state"])
+    #     print(metrics)
 
-        import wandb
-        wandb.log({"eval/loss": eval_loss})
+    # if eval_dataset is not None:
+    #     # Final evaluation and log in wandb
+    #     eval_loss = final_eval(experiment)
+
+    #     import wandb
+
+    #     wandb.log({"eval/loss": eval_loss})
 
 
 if __name__ == "__main__":
@@ -270,9 +297,9 @@ if __name__ == "__main__":
     available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
 
     # Validate GPU configuration
-    assert (
-        config.num_gpus <= available_gpus
-    ), f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    assert config.num_gpus <= available_gpus, (
+        f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    )
     assert config.num_gpus > 0, "Number of GPUs must be greater than 0"
     print(f"Using {config.num_gpus} GPUs")
 
