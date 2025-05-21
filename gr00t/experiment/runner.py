@@ -37,6 +37,7 @@ class TrainRunner:
         model: GR00T_N1,
         training_args: TrainingArguments,
         train_dataset: LeRobotSingleDataset,
+        eval_dataset: LeRobotSingleDataset | None = None,
         resume_from_checkpoint: bool = False,
     ):
         self.training_args = training_args
@@ -45,6 +46,7 @@ class TrainRunner:
         self.exp_cfg_dir.mkdir(parents=True, exist_ok=True)
         self.resume_from_checkpoint = resume_from_checkpoint
         self.train_dataset = train_dataset
+        self.eval_dataset = eval_dataset
         # Set up training arguments
         training_args.run_name = (
             training_args.output_dir.split("/")[-1]
@@ -65,6 +67,7 @@ class TrainRunner:
             model=model,
             training_args=training_args,
             train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
             data_collator=data_collator,
             compute_dtype=compute_dtype,
         )
@@ -116,6 +119,7 @@ class TrainRunner:
         model,
         training_args,
         train_dataset,
+        eval_dataset,
         data_collator,
         compute_dtype,
         global_batch_size=None,
@@ -135,6 +139,7 @@ class TrainRunner:
             model=model,
             args=training_args,
             train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
             data_collator=data_collator,
             compute_dtype=compute_dtype,
         )
@@ -168,3 +173,10 @@ class TrainRunner:
             trainer=self.trainer,
             output_dir=self.training_args.output_dir,
         )
+
+    def evaluate(self, eval_dataset: LeRobotSingleDataset | None = None):
+        """Evaluate the model using the HuggingFace trainer."""
+        dataset = eval_dataset or self.eval_dataset
+        if dataset is None:
+            raise ValueError("No evaluation dataset provided")
+        return self.trainer.evaluate(eval_dataset=dataset)

@@ -29,7 +29,7 @@ from gr00t.experiment.data_config import ConfigGenerator
 from gr00t.experiment.runner import TrainRunner
 from gr00t.model.gr00t_n1 import GR00T_N1
 from gr00t.utils.peft import get_lora_model
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import random_split
 
 
 @dataclass
@@ -38,7 +38,10 @@ class Config:
 
     # Dataset parameters
     dataset_path: str
-    """Path to the dataset directory."""
+    """Path to the training dataset directory."""
+
+    validation_dataset_path: str | None = None
+    """Optional path to a separate validation dataset."""
 
     output_dir: str = "/tmp/gr00t"
     """Directory to save model checkpoints."""
@@ -123,23 +126,14 @@ class Config:
     """Percentage of data for training. Example: 1 means you train on 100% of your data"""
 
 
-def evaluate(model, dataset, batch_size=8) -> float:
-    model.eval()
-    eval_loader = DataLoader(dataset, batch_size=batch_size)
-    total_loss = 0.0
-    criterion = torch.nn.MSELoss()  # À adapter selon ta task
+# ---------------------------------------------------------------------------
+# Training utilities
+# ---------------------------------------------------------------------------
 
-    with torch.no_grad():
-        for batch in eval_loader:
-            # 🔧 adapte ces lignes selon la structure de ton dataset
-            inputs = batch["input"]
-            targets = batch["target"]
-
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            total_loss += loss.item()
-
-    return total_loss / len(eval_loader)
+def final_eval(runner: TrainRunner) -> float:
+    """Run a final evaluation with the trainer and return the loss."""
+    metrics = runner.evaluate()
+    return metrics.get("eval_loss", 0.0)
 
 
 #####################################################################################
@@ -157,17 +151,27 @@ def main(config: Config):
     modality_configs = data_config_cls.modality_config()
     transforms = data_config_cls.transform()
 
-    # 1.2 data loader
+    # 1.2 data loader for training dataset
     full_dataset = LeRobotSingleDataset(
-    dataset_path=config.dataset_path,
-    modality_configs=modality_configs,
-    transforms=transforms,
-    embodiment_tag=embodiment_tag,
-    video_backend=config.video_backend,
+        dataset_path=config.dataset_path,
+        modality_configs=modality_configs,
+        transforms=transforms,
+        embodiment_tag=embodiment_tag,
+        video_backend=config.video_backend,
     )
 
-    # Split 80/20 train/eval
-    if config.train_test_split < 1:
+    # Validation dataset logic
+    eval_dataset = None
+    if config.validation_dataset_path is not None:
+        eval_dataset = LeRobotSingleDataset(
+            dataset_path=config.validation_dataset_path,
+            modality_configs=modality_configs,
+            transforms=transforms,
+            embodiment_tag=embodiment_tag,
+            video_backend=config.video_backend,
+        )
+        train_dataset = full_dataset
+    elif config.train_test_split < 1:
         train_size = int(config.train_test_split * len(full_dataset))
         eval_size = len(full_dataset) - train_size
         train_dataset, eval_dataset = random_split(full_dataset, [train_size, eval_size])
@@ -221,11 +225,11 @@ def main(config: Config):
         num_train_epochs=config.num_epochs,
         save_strategy="steps",
         save_steps=config.save_steps,
-        evaluation_strategy="no",
+        evaluation_strategy="epoch" if eval_dataset is not None else "no",
         save_total_limit=8,
         report_to=config.report_to,
         seed=42,
-        do_eval=False,
+        do_eval=eval_dataset is not None,
         ddp_find_unused_parameters=False,
         ddp_bucket_cap_mb=100,
         torch_compile_mode=None,
@@ -234,6 +238,7 @@ def main(config: Config):
     # 2.2 run experiment
     experiment = TrainRunner(
         train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         model=model,
         training_args=training_args,
         resume_from_checkpoint=config.resume,
@@ -242,9 +247,9 @@ def main(config: Config):
     # 2.3 run experiment
     experiment.train()
 
-    if config.train_test_split < 1:
-        # 🧪 Evaluation + log dans wandb
-        eval_loss = evaluate(model, eval_dataset, batch_size=config.batch_size)
+    if eval_dataset is not None:
+        # Final evaluation and log in wandb
+        eval_loss = final_eval(experiment)
 
         import wandb
         wandb.log({"eval/loss": eval_loss})
