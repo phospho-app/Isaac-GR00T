@@ -158,7 +158,9 @@ class GR00TTransform(InvertibleModalityTransform):
                 lang = lang[0]
         else:
             lang = self.default_instruction
-            raise ValueError("Language not found for {self.embodiment_tag.value}")
+            raise ValueError(
+                f"Language not found for {self.embodiment_tag.value}"
+            )
 
         prompt = [
             {"role": "system", "content": DEFAULT_SYSTEM_MESSAGE},
