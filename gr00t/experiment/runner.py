@@ -29,6 +29,7 @@ from gr00t.utils.experiment import (
     CheckpointFormatCallback,
     safe_save_model_for_hf_trainer,
 )
+from typing import List, Optional, Callable
 
 
 class TrainRunner:
@@ -37,7 +38,9 @@ class TrainRunner:
         model: GR00T_N1,
         training_args: TrainingArguments,
         train_dataset: LeRobotSingleDataset,
+        eval_dataset: LeRobotSingleDataset | None = None,
         resume_from_checkpoint: bool = False,
+        compute_metrics: Callable = None,
     ):
         self.training_args = training_args
         self.output_dir = Path(training_args.output_dir)
@@ -45,11 +48,10 @@ class TrainRunner:
         self.exp_cfg_dir.mkdir(parents=True, exist_ok=True)
         self.resume_from_checkpoint = resume_from_checkpoint
         self.train_dataset = train_dataset
+        self.eval_dataset = eval_dataset
         # Set up training arguments
         training_args.run_name = (
-            training_args.output_dir.split("/")[-1]
-            if training_args.run_name is None
-            else training_args.run_name
+            training_args.output_dir.split("/")[-1] if training_args.run_name is None else training_args.run_name
         )
         print(f"Run name: {training_args.run_name}")
 
@@ -65,6 +67,7 @@ class TrainRunner:
             model=model,
             training_args=training_args,
             train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
             data_collator=data_collator,
             compute_dtype=compute_dtype,
         )
@@ -77,9 +80,7 @@ class TrainRunner:
             if os.path.exists(self.exp_cfg_dir / "metadata.json"):
                 with open(self.exp_cfg_dir / "metadata.json", "r") as f:
                     metadata_json = json.load(f)
-            metadata_json.update(
-                {train_dataset.tag: train_dataset.metadata.model_dump(mode="json")}
-            )
+            metadata_json.update({train_dataset.tag: train_dataset.metadata.model_dump(mode="json")})
             with open(self.exp_cfg_dir / "metadata.json", "w") as f:
                 json.dump(metadata_json, f, indent=4)
 
@@ -116,8 +117,10 @@ class TrainRunner:
         model,
         training_args,
         train_dataset,
+        eval_dataset,
         data_collator,
         compute_dtype,
+        compute_metrics=None,
         global_batch_size=None,
     ):
         # Set the gradient accumulation steps if global_batch_size is provided
@@ -126,24 +129,22 @@ class TrainRunner:
             num_gpus = torch.cuda.device_count()
             grad_acc = max(1, global_batch_size // (bs * num_gpus))
             training_args.gradient_accumulation_steps = grad_acc
-            print(
-                f"Set global batch size to {global_batch_size}, set gradient accumulation steps to {grad_acc}"
-            )
+            print(f"Set global batch size to {global_batch_size}, set gradient accumulation steps to {grad_acc}")
 
         # Create the trainer
         trainer = DualBrainTrainer(
             model=model,
             args=training_args,
             train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
             data_collator=data_collator,
             compute_dtype=compute_dtype,
+            compute_metrics=compute_metrics,
         )
 
         # Add checkpoint format callback to ensure experiment_cfg is copied to each checkpoint
         run_name = training_args.run_name
-        ckpt_format_callback = CheckpointFormatCallback(
-            run_name=run_name, exp_cfg_dir=self.exp_cfg_dir
-        )
+        ckpt_format_callback = CheckpointFormatCallback(run_name=run_name, exp_cfg_dir=self.exp_cfg_dir)
         trainer.add_callback(ckpt_format_callback)
 
         # Log dataloader information
@@ -161,10 +162,17 @@ class TrainRunner:
 
     def train(self):
         # Start training
-        self.trainer.train(resume_from_checkpoint=self.resume_from_checkpoint)
+        self.trainer.train(resume_from_checkpoint=self.resume_from_checkpoint, ignore_keys_for_eval=["state"])
         self.trainer.save_state()
 
         safe_save_model_for_hf_trainer(
             trainer=self.trainer,
             output_dir=self.training_args.output_dir,
         )
+
+    def evaluate(self, eval_dataset: LeRobotSingleDataset | None = None, ignore_keys: Optional[List[str]] = None):
+        """Evaluate the model using the HuggingFace trainer."""
+        dataset = eval_dataset or self.eval_dataset
+        if dataset is None:
+            raise ValueError("No evaluation dataset provided")
+        return self.trainer.evaluate(eval_dataset=dataset, ignore_keys=ignore_keys)
