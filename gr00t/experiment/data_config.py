@@ -229,6 +229,7 @@ class So100WCDataConfig(BaseDataConfig):
     video_keys = ["video.cam_context", "video.cam_wrist"]
     state_keys = ["state.single_arm", "state.gripper"]
     action_keys = ["action.single_arm", "action.gripper"]
+    box_keys = ["box.pickup", "box.target"]
     language_keys = ["annotation.human.task_description"]
     observation_indices = [0]
     action_indices = list(range(16))
@@ -254,10 +255,16 @@ class So100WCDataConfig(BaseDataConfig):
             modality_keys=self.language_keys,
         )
 
+        boxes_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.box_keys,
+        )
+
         modality_configs = {
             "video": video_modality,
             "state": state_modality,
             "action": action_modality,
+            "boxes": boxes_modality,
             "language": language_modality,
         }
 
@@ -289,11 +296,18 @@ class So100WCDataConfig(BaseDataConfig):
                 apply_to=self.action_keys,
                 normalization_modes={key: "min_max" for key in self.action_keys},
             ),
+            # box transforms
+            StateActionToTensor(apply_to=self.box_keys),
+            StateActionTransform(
+                apply_to=self.box_keys,
+                normalization_modes={key: "min_max" for key in self.box_keys},
+            ),
             # concat transforms
             ConcatTransform(
                 video_concat_order=self.video_keys,
                 state_concat_order=self.state_keys,
                 action_concat_order=self.action_keys,
+                box_concat_order=self.box_keys,
             ),
             # model-specific transform
             GR00TTransform(
@@ -1357,12 +1371,13 @@ class ConfigGeneratorFromNames(BaseDataConfig):
     Will name action keys as the given parameters
     """
 
-    def __init__(self, video_keys: list[str], state_keys: list[str], action_keys: list[str]):
+    def __init__(self, video_keys: list[str], state_keys: list[str], action_keys: list[str], box_keys: list[str]):
         super().__init__()
 
         self.video_keys = video_keys
         self.state_keys = state_keys
         self.action_keys = action_keys
+        self.box_keys = box_keys or []
 
         self.language_keys = ["annotation.human.task_description"]
 
@@ -1390,12 +1405,20 @@ class ConfigGeneratorFromNames(BaseDataConfig):
             modality_keys=self.language_keys,
         )
 
+        boxes_modality = ModalityConfig(
+            delta_indices=self.observation_indices,
+            modality_keys=self.box_keys,
+        )
+
         modality_configs = {
             "video": video_modality,
             "state": state_modality,
             "action": action_modality,
             "language": language_modality,
         }
+
+        if self.box_keys:
+            modality_configs["boxes"] = boxes_modality
 
         return modality_configs
 
@@ -1425,11 +1448,19 @@ class ConfigGeneratorFromNames(BaseDataConfig):
                 apply_to=self.action_keys,
                 normalization_modes={key: "min_max" for key in self.action_keys},
             ),
+            # box transforms
+            StateActionToTensor(apply_to=self.box_keys),
+            StateActionTransform(
+                apply_to=self.box_keys,
+                normalization_modes={key: "min_max" for key in self.box_keys},
+            ),
+
             # concat transforms
             ConcatTransform(
                 video_concat_order=self.video_keys,
                 state_concat_order=self.state_keys,
                 action_concat_order=self.action_keys,
+                box_concat_order=self.box_keys if self.box_keys else None,
             ),
             # model-specific transform
             GR00TTransform(

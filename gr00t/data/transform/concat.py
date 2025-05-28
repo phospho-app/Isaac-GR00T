@@ -51,6 +51,17 @@ class ConcatTransform(InvertibleModalityTransform):
         "Format: ['action.position', 'action.velocity', ...].",
     )
 
+    box_concat_order: Optional[list[str]] = Field(
+        default=None,
+        description="Concatenation order for each box modality. "
+        "Format: ['box.pickup', 'box.target', ...].",
+    )
+
+    box_dims: dict[str, int] = Field(
+        default_factory=dict,
+        description="The dimensions of the box keys.",
+    )
+
     action_dims: dict[str, int] = Field(
         default_factory=dict,
         description="The dimensions of the action keys.",
@@ -67,6 +78,7 @@ class ConcatTransform(InvertibleModalityTransform):
                 "video_concat_order",
                 "state_concat_order",
                 "action_concat_order",
+                "box_concat_order",
             }
         else:
             include = kwargs.pop("include", None)
@@ -155,6 +167,18 @@ class ConcatTransform(InvertibleModalityTransform):
                 [data.pop(key) for key in self.action_concat_order], dim=-1
             )  # [T, D_action]
 
+        # Box processing
+        if "box" in grouped_keys:
+            box_keys = grouped_keys["box"]
+            assert self.box_concat_order is not None, f"{self.box_concat_order=}"
+            assert all(
+                item in box_keys for item in self.box_concat_order
+            ), f"keys in box_concat_order are misspecified, \n{box_keys=}, \n{self.box_concat_order=}"
+            # Concatenate the box keys
+            data["box"] = torch.cat(
+                [data.pop(key) for key in self.box_concat_order], dim=-1
+            )  # [T, D_box]
+
         return data
 
     def unapply(self, data: dict) -> dict:
@@ -176,6 +200,14 @@ class ConcatTransform(InvertibleModalityTransform):
             for key in self.state_concat_order:
                 end_dim = start_dim + self.state_dims[key]
                 data[key] = state_tensor[..., start_dim:end_dim]
+                start_dim = end_dim
+        if "box" in data:
+            assert self.box_concat_order is not None, f"{self.box_concat_order=}"
+            start_dim = 0
+            box_tensor = data.pop("box")
+            for key in self.box_concat_order:
+                end_dim = start_dim + self.box_dims[key]
+                data[key] = box_tensor[..., start_dim:end_dim]
                 start_dim = end_dim
         return data
 
@@ -213,3 +245,6 @@ class ConcatTransform(InvertibleModalityTransform):
         if self.state_concat_order is not None:
             for key in self.state_concat_order:
                 self.state_dims[key] = self.get_state_action_dims(key)
+        if self.box_concat_order is not None:
+            for key in self.box_concat_order:
+                self.box_dims[key] = self.get_state_action_dims(key)
