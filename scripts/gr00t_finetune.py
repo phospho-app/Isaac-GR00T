@@ -53,13 +53,13 @@ class Config:
     """Number of cameras to use for training. Should be greater or equal to 1"""
 
     # Training parameters
-    batch_size: int = 16
+    batch_size: int = 60
     """Batch size per GPU for training."""
 
     max_steps: int = 10000
     """Maximum number of training steps."""
 
-    num_epochs: int = 10
+    num_epochs: int = 8
     """Number of epochs to train for."""
 
     num_gpus: int = 1
