@@ -581,7 +581,12 @@ class DoubleSo100W2CDataConfig(BaseDataConfig):
     phospho setup with 2 SO100 arm, 2 context cams and 2 wrist cams
     """
 
-    video_keys = ["video.cam_context_1", "video.cam_context_2", "video.cam_wrist_left", "video.cam_wrist_right"]
+    video_keys = [
+        "video.cam_context_1",
+        "video.cam_context_2",
+        "video.cam_wrist_left",
+        "video.cam_wrist_right",
+    ]
     state_keys = [
         "state.left_arm",
         "state.left_gripper",

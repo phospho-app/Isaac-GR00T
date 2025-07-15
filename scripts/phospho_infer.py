@@ -10,10 +10,9 @@
 import time
 
 import cv2
-import numpy as np
-
-from phosphobot.am import Gr00tN1
 import httpx
+import numpy as np
+from phosphobot.am import Gr00tN1
 from phosphobot.camera import AllCameras
 
 host = "YOUR_SERVER_IP"  # Change this to your server IP (this is the IP of the machine running the Gr00tN1 server using a GPU)

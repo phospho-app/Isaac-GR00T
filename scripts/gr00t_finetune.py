@@ -20,10 +20,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Literal
 
+import numpy as np
 import torch
 import tyro
+from torch.utils.data import random_split
 from transformers import TrainingArguments
-import numpy as np
 
 from gr00t.data.dataset import LeRobotMixtureDataset, LeRobotSingleDataset
 from gr00t.data.schema import EmbodimentTag
@@ -32,7 +33,6 @@ from gr00t.experiment.runner import TrainRunner
 from gr00t.model.gr00t_n1 import GR00T_N1_5
 from gr00t.model.transforms import EMBODIMENT_TAG_MAPPING
 from gr00t.utils.peft import get_lora_model
-from torch.utils.data import random_split
 
 
 @dataclass
@@ -49,7 +49,7 @@ class ArgsConfig:
     output_dir: str = "/tmp/gr00t"
     """Directory to save model checkpoints."""
 
-    data_config: Literal[tuple(DATA_CONFIG_MAP.keys())] = "fourier_gr1_arms_only"
+    data_config: str
     """Data configuration name from DATA_CONFIG_MAP, we assume all datasets have the same data config"""
 
     num_arms: int = 1
@@ -185,7 +185,7 @@ def main(config: ArgsConfig):
 
     # 1.2 data loader: we will use either single dataset or mixture dataset
     if len(config.dataset_path) == 1:
-        train_dataset = LeRobotSingleDataset(
+        full_dataset = LeRobotSingleDataset(
             dataset_path=config.dataset_path[0],
             modality_configs=modality_configs,
             transforms=transforms,
@@ -207,7 +207,7 @@ def main(config: ArgsConfig):
             )
             single_datasets.append(dataset)
 
-        train_dataset = LeRobotMixtureDataset(
+        full_dataset = LeRobotMixtureDataset(
             data_mixture=[
                 (dataset, 1.0)  # we will use equal weights for all datasets
                 for dataset in single_datasets
