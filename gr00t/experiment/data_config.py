@@ -1086,16 +1086,12 @@ class ConfigGenerator(BaseDataConfig):
             StateActionTransform(
                 apply_to=self.state_keys,
                 normalization_modes={key: "min_max" for key in self.state_keys},
-                target_rotations={
-                    "state.eef_rotation": "rotation_6d",
-                },
             ),
             # action transforms
             StateActionToTensor(apply_to=self.action_keys),
             StateActionTransform(
                 apply_to=self.action_keys,
                 normalization_modes={key: "min_max" for key in self.action_keys},
-                target_rotations={"action.eef_rotation_delta": "axis_angle"},
             ),
             # concat transforms
             ConcatTransform(
