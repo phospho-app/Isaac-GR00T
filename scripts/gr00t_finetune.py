@@ -49,7 +49,7 @@ class ArgsConfig:
     output_dir: str = "/tmp/gr00t"
     """Directory to save model checkpoints."""
 
-    data_config: str
+    data_config: str = "so100"
     """Data configuration name from DATA_CONFIG_MAP, we assume all datasets have the same data config"""
 
     num_arms: int = 1
