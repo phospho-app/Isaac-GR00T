@@ -39,8 +39,8 @@ N_COLOR_CHANNELS = 3
 
 # config
 @dataclass
-class GR00T_N1Config(PretrainedConfig):
-    model_type = "gr00t_n1"
+class GR00T_N1_5_Config(PretrainedConfig):
+    model_type = "gr00t_n1_5"
     backbone_cfg: dict = field(init=False, metadata={"help": "Backbone configuration."})
 
     action_head_cfg: dict = field(init=False, metadata={"help": "Action head configuration."})
@@ -57,9 +57,9 @@ class GR00T_N1Config(PretrainedConfig):
 
 
 # real model
-class GR00T_N1(PreTrainedModel):
+class GR00T_N1_5(PreTrainedModel):
     supports_gradient_checkpointing = True
-    config_class = GR00T_N1Config
+    config_class = GR00T_N1_5_Config
     """
     we expect the backbone output to have a key 'backbone_features' with shape (batch_size, n, hidden_size)
     here n is variable and can be e.g. time, 1 or user specified
@@ -69,7 +69,7 @@ class GR00T_N1(PreTrainedModel):
 
     def __init__(
         self,
-        config: GR00T_N1Config,
+        config: GR00T_N1_5_Config,
         local_model_path: str,
     ):
         assert isinstance(config.backbone_cfg, dict)
@@ -127,7 +127,8 @@ class GR00T_N1(PreTrainedModel):
 
     def validate_data(self, action_head_outputs, backbone_outputs, is_training):
         fail_backbone = (
-            not isinstance(backbone_outputs, BatchFeature) or BACKBONE_FEATURE_KEY not in backbone_outputs
+            not isinstance(backbone_outputs, BatchFeature)
+            or BACKBONE_FEATURE_KEY not in backbone_outputs
         )
 
         if fail_backbone:
@@ -220,9 +221,13 @@ class GR00T_N1(PreTrainedModel):
             )
             local_model_path = pretrained_model_name_or_path
 
-        pretrained_model = super().from_pretrained(local_model_path, local_model_path=local_model_path, **kwargs)
+        pretrained_model = super().from_pretrained(
+            local_model_path, local_model_path=local_model_path, **kwargs
+        )
 
-        pretrained_model.backbone.set_trainable_parameters(tune_visual=tune_visual, tune_llm=tune_llm)
+        pretrained_model.backbone.set_trainable_parameters(
+            tune_visual=tune_visual, tune_llm=tune_llm
+        )
         pretrained_model.action_head.set_trainable_parameters(
             tune_projector=tune_projector, tune_diffusion_model=tune_diffusion_model
         )
@@ -230,5 +235,5 @@ class GR00T_N1(PreTrainedModel):
 
 
 # register
-AutoConfig.register("gr00t_n1", GR00T_N1Config)
-AutoModel.register(GR00T_N1Config, GR00T_N1)
+AutoConfig.register("gr00t_n1_5", GR00T_N1_5_Config)
+AutoModel.register(GR00T_N1_5_Config, GR00T_N1_5)
