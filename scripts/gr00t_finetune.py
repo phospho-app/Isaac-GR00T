@@ -327,7 +327,7 @@ def main(config: ArgsConfig):
         num_train_epochs=config.num_epochs,
         save_strategy="steps",
         save_steps=config.save_steps,
-        evaluation_strategy="epoch" if eval_dataset is not None else "no",
+        eval_strategy="epoch" if eval_dataset is not None else "no",
         save_total_limit=8,
         report_to=config.report_to,
         seed=42,
