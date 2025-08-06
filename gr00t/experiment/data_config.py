@@ -1176,13 +1176,13 @@ class ConfigGeneratorFromNames(BaseDataConfig):
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,
-                normalization_modes={key: "min_max" for key in self.state_keys},
+                normalization_modes={key: "binary" if "gripper" in key else "min_max" for key in self.state_keys},
             ),
             # action transforms
             StateActionToTensor(apply_to=self.action_keys),
             StateActionTransform(
                 apply_to=self.action_keys,
-                normalization_modes={key: "min_max" for key in self.action_keys},
+                normalization_modes={key: "binary" if "gripper" in key else "min_max" for key in self.action_keys},
             ),
             # concat transforms
             ConcatTransform(
