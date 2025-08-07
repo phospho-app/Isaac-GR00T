@@ -100,7 +100,7 @@ class TrainRunner:
         if report_to == "wandb":
             # Set the environment variables for wandb
             if "WANDB_PROJECT" not in os.environ:
-                os.environ["WANDB_PROJECT"] = "gr00t-training"
+                os.environ["WANDB_PROJECT"] = "phosphobot-gr00t"
             if "WANDB_RUN_ID" not in os.environ:
                 runtime_id = os.environ.get("RUNTIME_ID", None)
                 if runtime_id:
