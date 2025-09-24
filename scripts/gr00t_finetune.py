@@ -52,8 +52,8 @@ class ArgsConfig:
     data_config: str = "so100"
     """Data configuration name from DATA_CONFIG_MAP, we assume all datasets have the same data config"""
 
-    num_arms: int = 1
-    """Number of arms to use for training. Should be greater or equal to 1"""
+    action_space: int = 1
+    """Number of actions to use for training. Should be greater or equal to 1"""
 
     num_cams: int = 1
     """Number of cameras to use for training. Should be greater or equal to 1"""
@@ -179,7 +179,7 @@ def main(config: ArgsConfig):
     embodiment_tag = EmbodimentTag(config.embodiment_tag)
 
     # 1.1 modality configs and transforms
-    data_config_cls = ConfigGenerator(num_arms=config.num_arms, num_cams=config.num_cams)
+    data_config_cls = ConfigGenerator(action_space=config.action_space, num_cams=config.num_cams)
     modality_configs = data_config_cls.modality_config()
     transforms = data_config_cls.transform()
 
@@ -380,9 +380,9 @@ if __name__ == "__main__":
     available_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
 
     # Validate GPU configuration
-    assert (
-        config.num_gpus <= available_gpus
-    ), f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    assert config.num_gpus <= available_gpus, (
+        f"Number of GPUs requested ({config.num_gpus}) is greater than the available GPUs ({available_gpus})"
+    )
     assert config.num_gpus > 0, "Number of GPUs must be greater than 0"
     print(f"Using {config.num_gpus} GPUs")
 

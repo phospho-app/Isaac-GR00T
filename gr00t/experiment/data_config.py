@@ -1020,27 +1020,18 @@ class ConfigGenerator(BaseDataConfig):
     Will name action keys as action.arm_<arm_id> and action.gripper_<arm_id>
     """
 
-    def __init__(self, num_arms: int, num_cams: int):
+    def __init__(self, action_space: int, num_cams: int):
         super().__init__()
-        self.num_arms = num_arms
+        self.action_space = action_space
         self.num_cams = num_cams
 
         self.video_keys = ["video.image_cam_{}".format(i) for i in range(num_cams)]
-
-        state_keys: list[str] = []
-        action_keys: list[str] = []
-
-        for i in range(num_arms):
-            state_keys.append("state.arm_{}".format(i))
-            action_keys.append("action.arm_{}".format(i))
-
-        self.state_keys = state_keys
-        self.action_keys = action_keys
-
+        self.state_keys = ["state.action_space"]
+        self.action_keys = ["action.action_space"]
         self.language_keys = ["annotation.human.task_description"]
 
         self.observation_indices = [0]
-        self.action_indices = list(range(16))
+        self.action_indices = list(range(action_space))
 
     def modality_config(self) -> dict[str, ModalityConfig]:
         video_modality = ModalityConfig(
