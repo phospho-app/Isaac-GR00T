@@ -259,6 +259,9 @@ class Gr00tPolicy(BasePolicy):
             # Copy the weights from the old action head to the new one
             new_action_head.load_state_dict(model.action_head.state_dict(), strict=False)
 
+            # Move the new action head to the correct device BEFORE replacing, this is important
+            new_action_head = new_action_head.to(device=self.device)
+
             # Replace the action head
             model.action_head = new_action_head
 
