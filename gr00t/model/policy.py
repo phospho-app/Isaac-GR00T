@@ -166,6 +166,12 @@ class Gr00tPolicy(BasePolicy):
         # Apply transforms
         normalized_input = self.apply_transforms(observations)
 
+        # Move normalized input to the model's device and get action
+        device = next(self.model.parameters()).device
+        for k, v in normalized_input.items():
+            if isinstance(v, torch.Tensor):
+                normalized_input[k] = v.to(device)
+
         normalized_action = self._get_action_from_normalized_input(normalized_input)
         unnormalized_action = self._get_unnormalized_action(normalized_action)
 
@@ -175,13 +181,6 @@ class Gr00tPolicy(BasePolicy):
 
     def _get_action_from_normalized_input(self, normalized_input: Dict[str, Any]) -> torch.Tensor:
         # Set up autocast context if needed
-        device = next(self.model.parameters()).device
-        print({k: v.device if isinstance(v, torch.Tensor) else "not tensor" for k, v in normalized_input.items()})
-        print(f"Model device: {next(self.model.parameters()).device}")
-        normalized_input = {
-            k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in normalized_input.items()
-        }
-
         with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=COMPUTE_DTYPE):
             model_pred = self.model.get_action(normalized_input)
 
